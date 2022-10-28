@@ -52,25 +52,21 @@ def IoU(candidate, verifier):
 
 
 ####################################### DATA ANALYSIS #######################################
-def approximate_theta_c_from_theta_v(W, d_claimed, theta_v):
-    s_v = W / math.atan(theta_v * (math.pi / 180)) - 2
+def approximate_theta_c_from_theta_v(d_claimed, theta_v):
+    s_v = LANE_WIDTH / math.atan(theta_v * (math.pi / 180)) - 2
     print(math.atan(12 / 10))
-    return math.atan(W / (d_claimed - s_v)) * (180 / math.pi)
+    return math.atan(LANE_WIDTH / (d_claimed - s_v)) * (180 / math.pi)
 
 
 def translate(theta_c_hat, theta_v, center_of_bb_x):
     # find x_c_hat
-    return (math.tan(theta_c_hat) / math.tan(theta_v)) * center_of_bb_x
+    return (math.tan(theta_c_hat * math.pi / 180) / math.tan(theta_v * math.pi / 180)) * center_of_bb_x
 
 
 def test_translate():
     theta_c_hat = approximate_theta_c_from_theta_v(W=12, d_claimed=50, theta_v=23.71)
-    x_c_hat = translate(theta_c_hat, theta_v=23.71, center_of_bb_x=3401-IMAGE_WIDTH)
+    x_c_hat = translate(theta_c_hat, theta_v=23.71, center_of_bb_x=3401 - IMAGE_WIDTH / 2)
     print(x_c_hat)
-
-
-
-test_translate()
 
 
 # gathering labels for candidate or verifier, specified by the function input argument
@@ -106,7 +102,7 @@ def get_avgs(dic):
     two_d_data = []
     for distance_bin in dic:
         counter = 0
-        x_center_sum, y_center_sum, bb_width_sum, bb_height_sum = 0, 0, 0, 0
+        x_center_sum, y_center_sum, bb_width_sum, bb_height_sum, angle = 0, 0, 0, 0, 0
         for file in dic[distance_bin]:
             # sum all predictions
             if dic[distance_bin][file] != ['']:
@@ -114,14 +110,16 @@ def get_avgs(dic):
                 y_center_sum += float(dic[distance_bin][file][0].split(' ')[2])
                 bb_width_sum += float(dic[distance_bin][file][0].split(' ')[3])
                 bb_height_sum += float(dic[distance_bin][file][0].split(' ')[4])
+                angle += float(dic[distance_bin][file][0].split(' ')[6])
                 counter += 1
         # average bounding boxes
         x_center_avg = x_center_sum / counter
         y_center_avg = y_center_sum / counter
         bb_width_avg = bb_width_sum / counter
         bb_height_avg = bb_height_sum / counter
+        angle = angle / counter
         nested_dic.update({distance_bin: [x_center_avg, y_center_avg, bb_width_avg,
-                                          bb_height_avg]})  # nested dictionary disregarding the file name
+                                          bb_height_avg, angle]})  # nested dictionary disregarding the file name
         # two_d_data.append([can_ver_str, distance_bin, x_center_avg, y_center_avg, bb_width_avg, bb_height_avg])
     return nested_dic
 
@@ -205,9 +203,9 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
         verifier_prediction = [0, IMAGE_WIDTH * complementary_dataframe[0],
                                IMAGE_HEIGHT * complementary_dataframe[1],
                                IMAGE_WIDTH * complementary_dataframe[2],
-                               IMAGE_HEIGHT * complementary_dataframe[3]]
+                               IMAGE_HEIGHT * complementary_dataframe[3], complementary_dataframe[4]]
         candidate_prediction = [0, IMAGE_WIDTH * cand_df[0], IMAGE_HEIGHT * cand_df[1], IMAGE_WIDTH * cand_df[2],
-                                IMAGE_HEIGHT * cand_df[3]]
+                                IMAGE_HEIGHT * cand_df[3], cand_df[4]]
         # original rotated approach
         top_left_corner, bottom_right_corner, new_center = rotate_bounding_box(
             candidate_prediction)  # rotate the candidate bounding box
@@ -215,18 +213,40 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
         euclidean_distance.append(pixel_dis)
         candidate_per_rotated_ver_per = [top_left_corner[0], top_left_corner[1], bottom_right_corner[0],
                                          bottom_right_corner[1]]
+        cand_gt = [candidate_prediction[1] - candidate_prediction[3] / 2,
+                  candidate_prediction[2] - candidate_prediction[4] / 2,
+                  candidate_prediction[1] + candidate_prediction[3] / 2,
+                  candidate_prediction[2] + candidate_prediction[4] / 2]
         ver_gt = [verifier_prediction[1] - verifier_prediction[3] / 2,
                   verifier_prediction[2] - verifier_prediction[4] / 2,
                   verifier_prediction[1] + verifier_prediction[3] / 2,
                   verifier_prediction[2] + verifier_prediction[4] / 2]
-        iou, common_area = IoU(ver_gt, candidate_per_rotated_ver_per)
-        if index == 35:
+        # another approach by trying to scale
+        center_of_bb_x = verifier_prediction[1] - IMAGE_WIDTH / 2 # center of the bounding box from candidate perspective
+        theta_c_hat = approximate_theta_c_from_theta_v(d_claimed=50, theta_v=verifier_prediction[5])
+        x_c_hat = translate(theta_c_hat=theta_c_hat,
+                            theta_v=verifier_prediction[5],
+                            center_of_bb_x=center_of_bb_x) # gets center of bb in image domain from verifier perspective
+        cand_pred = [(int(candidate_prediction[1] - candidate_prediction[3]/2), int(candidate_prediction[2] - candidate_prediction[4]/2)),
+                     (int(candidate_prediction[1] + candidate_prediction[3]/2), int(candidate_prediction[2] + candidate_prediction[4]/2))]
+        new_prediction = [
+            (int(x_v_hat - candidate_prediction[3] / 2), int(candidate_prediction[2] - candidate_prediction[4] / 2)),
+            (int(x_v_hat + candidate_prediction[3] / 2), int(candidate_prediction[2] + candidate_prediction[4] / 2))]
+        # iou, common_area = IoU(ver_gt, candidate_per_rotated_ver_per)
+        iou, common_area = IoU(cand_gt, [int(x_v_hat - candidate_prediction[3] / 2),
+                                        int(candidate_prediction[2] - candidate_prediction[4] / 2),
+                                        int(x_v_hat + candidate_prediction[3] / 2),
+                                        int(candidate_prediction[2] + candidate_prediction[4] / 2)])
+        if index == 15:
             # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
-            # draw_bounding_boxes_on_verifier('50_feet_imgs\\candidate\\15ft\\IMG_8641.JPG', (int(ver_gt[0]), int(ver_gt[1])), (int(ver_gt[2]), int(ver_gt[3])), (0, 0, 255))
-            # draw_bounding_boxes_on_verifier('test\\comp.jpg',top_left_corner, bottom_right_corner, (255, 0, 0))
-            draw_bounding_boxes_on_verifier('test/target_35ft_from_candidate.jpg',
-                                            (int(common_area[0]), int(common_area[1])),
-                                            (int(common_area[2]), int(common_area[3])), (0, 255, 0))
+            draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/15ft/out_images/IMG_8642.JPG',
+                                            cand_pred[0], cand_pred[1],
+                                            (0, 0, 255))
+            draw_bounding_boxes_on_verifier('test\\test_new_method.jpg', new_prediction[0], new_prediction[1],
+                                            (255, 0, 0))
+            # draw_bounding_boxes_on_verifier('test\\test_new_method.jpg',
+            #                                 (int(common_area[0]), int(common_area[1])),
+            #                                 (int(common_area[2]), int(common_area[3])), (0, 255, 0))
 
         iou_list.append(iou)
     plot_pixel_dist(candidate_second_key, euclidean_distance)
@@ -379,7 +399,7 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
     # color = (0, 0, 255)
     cv2.rectangle(im, top_left_corner, bot_right_corner, color, 5)
     # cv2.putText(im, 'Rotated Bounding Box', (top_left_corner[0], top_left_corner[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 2,(36, 255, 12), 2)
-    cv2.imwrite('test\\iou_targ_35.jpg', im)
+    cv2.imwrite('test\\test_new_method.jpg', im)
 
 
 df = df_for_avgs()
