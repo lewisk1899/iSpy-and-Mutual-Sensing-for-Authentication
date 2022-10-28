@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import math
 import os, time, random
 import pandas as pd
+import numpy as np
+import pprint
 
 IMAGE_HEIGHT = 3024
 IMAGE_WIDTH = 4032
@@ -21,7 +23,56 @@ def find_angle(xmin, xmax, center_of_image):
     return math.atan(math.fabs(x_bb_center - center_of_image[0]) / FOCAL_LENGTH) * (180 / math.pi)
 
 
+def IoU(candidate, verifier):
+    # coordinates of the area of intersection.
+    ix1 = np.maximum(candidate[0], verifier[0])
+    iy1 = np.maximum(candidate[1], verifier[1])
+    ix2 = np.minimum(candidate[2], verifier[2])
+    iy2 = np.minimum(candidate[3], verifier[3])
+
+    # Intersection height and width.
+    i_height = np.maximum(iy2 - iy1 + 1, np.array(0.))
+    i_width = np.maximum(ix2 - ix1 + 1, np.array(0.))
+
+    area_of_intersection = i_height * i_width
+
+    # Ground Truth dimensions.
+    gt_height = candidate[3] - candidate[1] + 1
+    gt_width = candidate[2] - candidate[0] + 1
+
+    # Prediction dimensions.
+    pd_height = verifier[3] - verifier[1] + 1
+    pd_width = verifier[2] - verifier[0] + 1
+
+    area_of_union = gt_height * gt_width + pd_height * pd_width - area_of_intersection
+
+    iou = area_of_intersection / area_of_union
+
+    return iou, (ix2, iy2, ix1, iy1)
+
+
 ####################################### DATA ANALYSIS #######################################
+def approximate_theta_c_from_theta_v(W, d_claimed, theta_v):
+    s_v = W / math.atan(theta_v * (math.pi / 180)) - 2
+    print(math.atan(12 / 10))
+    return math.atan(W / (d_claimed - s_v)) * (180 / math.pi)
+
+
+def translate(theta_c_hat, theta_v, center_of_bb_x):
+    # find x_c_hat
+    return (math.tan(theta_c_hat) / math.tan(theta_v)) * center_of_bb_x
+
+
+def test_translate():
+    theta_c_hat = approximate_theta_c_from_theta_v(W=12, d_claimed=50, theta_v=23.71)
+    x_c_hat = translate(theta_c_hat, theta_v=23.71, center_of_bb_x=3401-IMAGE_WIDTH)
+    print(x_c_hat)
+
+
+
+test_translate()
+
+
 # gathering labels for candidate or verifier, specified by the function input argument
 # create a dictionary in a dictionary, moreover, first key is the respective distance,
 # second key is the respective image label, value is the data associated with said image label
@@ -143,8 +194,9 @@ def find_complementary_image(cand_or_dist, distance_bin, claimed_distance):
 def calculate_center_point_error(data_dataframe, claimed_distance):
     # iterate through all the CANDIDATE data points
     # ('candidate', verifier)
-    candidate_second_key = [15, 20, 25, 30, 35, 40, 45]  # target is this far away from the candidate
+    candidate_second_key = [15, 20, 25, 30, 35, 40]  # target is this far away from the candidate
     euclidean_distance = []
+    iou_list = []
     i = 0
     for index in candidate_second_key:
         cand_df = data_dataframe[('candidate', index)]
@@ -156,13 +208,27 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
                                IMAGE_HEIGHT * complementary_dataframe[3]]
         candidate_prediction = [0, IMAGE_WIDTH * cand_df[0], IMAGE_HEIGHT * cand_df[1], IMAGE_WIDTH * cand_df[2],
                                 IMAGE_HEIGHT * cand_df[3]]
+        # original rotated approach
         top_left_corner, bottom_right_corner, new_center = rotate_bounding_box(
             candidate_prediction)  # rotate the candidate bounding box
         pixel_dis = pixel_distance((new_center[0], new_center[1]), (verifier_prediction[1], verifier_prediction[2]))
         euclidean_distance.append(pixel_dis)
-        # if index == 15:
-        #     draw_bounding_boxes_on_verifier('C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG', top_left_corner, bottom_right_corner)
-        IoU(bounding_box_1, bounding_box_2)
+        candidate_per_rotated_ver_per = [top_left_corner[0], top_left_corner[1], bottom_right_corner[0],
+                                         bottom_right_corner[1]]
+        ver_gt = [verifier_prediction[1] - verifier_prediction[3] / 2,
+                  verifier_prediction[2] - verifier_prediction[4] / 2,
+                  verifier_prediction[1] + verifier_prediction[3] / 2,
+                  verifier_prediction[2] + verifier_prediction[4] / 2]
+        iou, common_area = IoU(ver_gt, candidate_per_rotated_ver_per)
+        if index == 35:
+            # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
+            # draw_bounding_boxes_on_verifier('50_feet_imgs\\candidate\\15ft\\IMG_8641.JPG', (int(ver_gt[0]), int(ver_gt[1])), (int(ver_gt[2]), int(ver_gt[3])), (0, 0, 255))
+            # draw_bounding_boxes_on_verifier('test\\comp.jpg',top_left_corner, bottom_right_corner, (255, 0, 0))
+            draw_bounding_boxes_on_verifier('test/target_35ft_from_candidate.jpg',
+                                            (int(common_area[0]), int(common_area[1])),
+                                            (int(common_area[2]), int(common_area[3])), (0, 255, 0))
+
+        iou_list.append(iou)
     plot_pixel_dist(candidate_second_key, euclidean_distance)
 
 
@@ -218,28 +284,6 @@ def convert_bounding_box_info(bounding_box_string):
     # converting from YOLOv5 format to a decimal representation
     # class, x_center, y_center, w, h, confidence, distance note: x,y,w,h are all normalized
     return bounding_box_string.split(' ')[:5]  # should cut off info regarding confidence and distance
-
-
-def IoU(bounding_box_1, bounding_box_2):
-    # determine the (x, y)-coordinates of the intersection rectangle
-    xA = max(bounding_box_1[1], bounding_box_2[1])
-    yA = max(bounding_box_1[2], bounding_box_2[2])
-    xB = min(bounding_box_1[1] + IMAGE_WIDTH * bounding_box_1[3], bounding_box_2[1] + IMAGE_WIDTH * bounding_box_2[3])
-    yB = min(bounding_box_1[2] + IMAGE_HEIGHT * bounding_box_1[4], bounding_box_2[2] + IMAGE_HEIGHT * bounding_box_2[4])
-    # compute the area of intersection rectangle
-    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-    # compute the area of both the prediction and ground-truth
-    # rectangles
-    boxAArea = (bounding_box_1[1] + IMAGE_WIDTH * bounding_box_1[3] - bounding_box_1[1] + 1) * (
-            bounding_box_1[2] + IMAGE_HEIGHT * bounding_box_1[4] - bounding_box_1[2] + 1)
-    boxBArea = (bounding_box_2[1] + IMAGE_WIDTH * bounding_box_2[3] - bounding_box_2[1] + 1) * (
-            bounding_box_2[2] + IMAGE_HEIGHT * bounding_box_2[4] - bounding_box_2[2] + 1)
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
-    iou = interArea / float(boxAArea + boxBArea - interArea)
-    # return the intersection over union value
-    return iou
 
 
 def gather_ground_truth(dist_directory):
@@ -329,14 +373,13 @@ def convert_from_yolo_to_norm(cand_list):
     return bb_center, int(IMAGE_WIDTH * float(cand_list[3])), int(IMAGE_HEIGHT * float(cand_list[4]))
 
 
-def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_corner):
+def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_corner, color):
     # draw a new bounding box
     im = cv2.imread(verifier_image)
-    color = (0, 0, 255)
-    cv2.rectangle(im, top_left_corner, bot_right_corner, color, 2)
-    cv2.putText(im, 'Rotated Bounding Box', (top_left_corner[0], top_left_corner[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 2,
-                (36, 255, 12), 2)
-    cv2.imwrite('C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\test\\target_15ft_from_candidate.jpg', im)
+    # color = (0, 0, 255)
+    cv2.rectangle(im, top_left_corner, bot_right_corner, color, 5)
+    # cv2.putText(im, 'Rotated Bounding Box', (top_left_corner[0], top_left_corner[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 2,(36, 255, 12), 2)
+    cv2.imwrite('test\\iou_targ_35.jpg', im)
 
 
 df = df_for_avgs()
