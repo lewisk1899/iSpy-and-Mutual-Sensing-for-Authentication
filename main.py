@@ -53,14 +53,14 @@ def IoU(candidate, verifier):
 
 ####################################### DATA ANALYSIS #######################################
 def approximate_theta_c_from_theta_v(d_claimed, theta_v):
-    s_v = LANE_WIDTH / math.atan(theta_v * (math.pi / 180)) - 2
+    s_v = LANE_WIDTH / math.atan(theta_v * (math.pi / 180))
     print(math.atan(12 / 10))
     return math.atan(LANE_WIDTH / (d_claimed - s_v)) * (180 / math.pi)
 
 
 def translate(theta_c_hat, theta_v, center_of_bb_x):
     # find x_c_hat
-    return (math.tan(theta_c_hat * math.pi / 180) / math.tan(theta_v * math.pi / 180)) * center_of_bb_x
+    return (math.tan(theta_c_hat * math.pi / 180) / math.tan(theta_v * math.pi / 180)) * center_of_bb_x + IMAGE_WIDTH/2
 
 
 def test_translate():
@@ -110,7 +110,9 @@ def get_avgs(dic):
                 y_center_sum += float(dic[distance_bin][file][0].split(' ')[2])
                 bb_width_sum += float(dic[distance_bin][file][0].split(' ')[3])
                 bb_height_sum += float(dic[distance_bin][file][0].split(' ')[4])
-                angle += float(dic[distance_bin][file][0].split(' ')[6])
+                entry = dic[distance_bin][file][0].split(' ')[7].strip()
+                print(file)
+                angle += float(entry)
                 counter += 1
         # average bounding boxes
         x_center_avg = x_center_sum / counter
@@ -192,7 +194,7 @@ def find_complementary_image(cand_or_dist, distance_bin, claimed_distance):
 def calculate_center_point_error(data_dataframe, claimed_distance):
     # iterate through all the CANDIDATE data points
     # ('candidate', verifier)
-    candidate_second_key = [15, 20, 25, 30, 35, 40]  # target is this far away from the candidate
+    candidate_second_key = [15, 20, 25, 30, 35, 40, 45]  # target is this far away from the candidate
     euclidean_distance = []
     iou_list = []
     i = 0
@@ -222,29 +224,27 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
                   verifier_prediction[1] + verifier_prediction[3] / 2,
                   verifier_prediction[2] + verifier_prediction[4] / 2]
         # another approach by trying to scale
-        center_of_bb_x = verifier_prediction[1] - IMAGE_WIDTH / 2 # center of the bounding box from candidate perspective
+        center_of_bb_x = verifier_prediction[1] # center of the bounding box from candidate perspective
         theta_c_hat = approximate_theta_c_from_theta_v(d_claimed=50, theta_v=verifier_prediction[5])
-        x_c_hat = translate(theta_c_hat=theta_c_hat,
-                            theta_v=verifier_prediction[5],
-                            center_of_bb_x=center_of_bb_x) # gets center of bb in image domain from verifier perspective
+        x_c_hat = translate(theta_c_hat=theta_c_hat,theta_v=verifier_prediction[5], center_of_bb_x=center_of_bb_x) # gets center of bb in image domain from verifier perspective
         cand_pred = [(int(candidate_prediction[1] - candidate_prediction[3]/2), int(candidate_prediction[2] - candidate_prediction[4]/2)),
                      (int(candidate_prediction[1] + candidate_prediction[3]/2), int(candidate_prediction[2] + candidate_prediction[4]/2))]
         new_prediction = [
-            (int(x_v_hat - candidate_prediction[3] / 2), int(candidate_prediction[2] - candidate_prediction[4] / 2)),
-            (int(x_v_hat + candidate_prediction[3] / 2), int(candidate_prediction[2] + candidate_prediction[4] / 2))]
+            (int(x_c_hat - verifier_prediction[3] / 2), int(verifier_prediction[2] - verifier_prediction[4] / 2)),
+            (int(x_c_hat + verifier_prediction[3] / 2), int(verifier_prediction[2] + verifier_prediction[4] / 2))]
         # iou, common_area = IoU(ver_gt, candidate_per_rotated_ver_per)
-        iou, common_area = IoU(cand_gt, [int(x_v_hat - candidate_prediction[3] / 2),
-                                        int(candidate_prediction[2] - candidate_prediction[4] / 2),
-                                        int(x_v_hat + candidate_prediction[3] / 2),
-                                        int(candidate_prediction[2] + candidate_prediction[4] / 2)])
-        if index == 15:
+        iou, common_area = IoU(cand_gt, [int(x_c_hat - verifier_prediction[3] / 2),
+                                        int(verifier_prediction[2] - verifier_prediction[4] / 2),
+                                        int(x_c_hat + verifier_prediction[3] / 2),
+                                        int(verifier_prediction[2] + verifier_prediction[4] / 2)])
+        if index == 45:
             # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
-            draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/15ft/out_images/IMG_8642.JPG',
-                                            cand_pred[0], cand_pred[1],
+            draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/45ft/out_images/IMG_8641.JPG',
+                                            new_prediction[0], new_prediction[1],
                                             (0, 0, 255))
-            draw_bounding_boxes_on_verifier('test\\test_new_method.jpg', new_prediction[0], new_prediction[1],
-                                            (255, 0, 0))
-            # draw_bounding_boxes_on_verifier('test\\test_new_method.jpg',
+            # draw_bounding_boxes_on_verifier('test\\new_method_45_ft_from_cand.jpg', cand_pred[0], cand_pred[1],
+            #                                 (255, 0, 0))
+            # draw_bounding_boxes_on_verifier('test\\new_method_45_ft_from_cand.jpg',
             #                                 (int(common_area[0]), int(common_area[1])),
             #                                 (int(common_area[2]), int(common_area[3])), (0, 255, 0))
 
@@ -399,7 +399,7 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
     # color = (0, 0, 255)
     cv2.rectangle(im, top_left_corner, bot_right_corner, color, 5)
     # cv2.putText(im, 'Rotated Bounding Box', (top_left_corner[0], top_left_corner[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 2,(36, 255, 12), 2)
-    cv2.imwrite('test\\test_new_method.jpg', im)
+    cv2.imwrite('test\\new_method_45_ft_from_cand.jpg', im)
 
 
 df = df_for_avgs()
