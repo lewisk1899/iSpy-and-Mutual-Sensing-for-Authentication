@@ -422,6 +422,19 @@ calculate_center_point_error(df, 50)
 # image_path = "C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\candidate\\50ft\\IMG_8721.JPG"
 # pp = pprint.PrettyPrinter(width=41, compact=True)
 
+# create a 2d plot showing the bounding box trace
+# moreover, x-y plane of the plot is the image, said plot will
+# show the movement of the center along the x-y plane when the
+# car moves further and closer to the car
+def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions):
+
+
+# create a 3d plot showing the bounding box trace
+# moreover, x-y plane of the plot is the image, and the axis
+# perpendicular to the x-y plane is the actaul real life
+# distance away from the car
+def three_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions):
+
 
 def find_angle(xmin, xmax, center_of_image):
     bb_width = (xmax - xmin) / 2
