@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import pprint
 
+from mpl_toolkits import mplot3d
+
 IMAGE_HEIGHT = 3024
 IMAGE_WIDTH = 4032
 LANE_WIDTH = 9
@@ -130,8 +132,11 @@ def df_for_avgs():
     # go through all files, for each distance bin create a file create a pandas dataframe [candidate/verifier,
     # 50/100, distance_bin, average_bb_center, avg_bb_width, avg_bb_height]
     header = ['candidate or verifier', 'distance_bin', 'x_center_avg', 'y_center_avg', 'bb_width_avg', 'bb_height_avg']
-    can_dic = gather_label_paths("candidate", "50_feet_imgs")
-    ver_dic = gather_label_paths("verifier", "50_feet_imgs")
+    can_dic = gather_label_paths("candidate", "100_feet_imgs")
+    ver_dic = gather_label_paths("verifier", "100_feet_imgs")
+
+    # can_dic = gather_label_paths("candidate", "50_feet_imgs")
+    # ver_dic = gather_label_paths("verifier", "50_feet_imgs")
     # data_dict = {'candidate': can_dic, 'verifier': ver_dic}
     nested_dic_can = get_avgs(can_dic)  # get average predictions in the form of a dictionary whose key is a bin
     nested_dic_ver = get_avgs(ver_dic)  # get average predictions
@@ -428,9 +433,7 @@ df = df_for_avgs()
 # car moves further and closer to the car
 def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions):
     # firstly, let us populate the x and y points
-    # get center bounding box average for two dimensional bounding box trace
-    print(verifier_predictions)
-    pass
+    # get center bounding box average for two-dimensional bounding box trace
     distances_cand = [15, 20, 25, 30, 35, 40, 45, 50]
     ver_cand = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
     cand_x = []
@@ -439,23 +442,61 @@ def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictio
     ver_y = []
     for distance in distances_cand:
        cand_x.append(candidate_predictions[distance][0] * IMAGE_WIDTH)
-       cand_y.append(candidate_predictions[distance][1] * IMAGE_HEIGHT)
+       cand_y.append(-1*candidate_predictions[distance][1] * IMAGE_HEIGHT)
 
     for distance in ver_cand:
         ver_x.append(verifier_predictions[distance][0] * IMAGE_WIDTH)
-        ver_y.append(verifier_predictions[distance][0] * IMAGE_HEIGHT)
+        ver_y.append(-1*verifier_predictions[distance][1] * IMAGE_HEIGHT)
 
+    plt.plot(ver_x, ver_y,'o', label='Verifier')
+    plt.plot(cand_x, cand_y, 'o', label='Candidate')
+    plt.xlabel('Horizontal Axis of Image')
+    plt.ylabel('Vertical Axis of Image')
+    plt.title('2-Dimensional Bounding Box Center Trace')
+    plt.legend(loc="upper left")
+    plt.ylim(-IMAGE_HEIGHT, 0)
+    plt.xlim(0, IMAGE_WIDTH)
 
+    plt.savefig('2-Dimensional Bounding Box Trace')
 
-two_dimensional_bounding_box_trace(df['candidate'], df['verifier'])
+#two_dimensional_bounding_box_trace(df['candidate'], df['verifier'])
 
 # create a 3d plot showing the bounding box trace
 # moreover, x-y plane of the plot is the image, and the axis
 # perpendicular to the x-y plane is the actaul real life
 # distance away from the car
 def three_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions):
-    pass
+    # firstly, let us populate the x and y points
+    # get center bounding box average for two-dimensional bounding box trace
+    distances_cand = [15, 20, 25, 30, 35, 40, 45, 50]
+    distances_ver = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+    cand_x = []
+    ver_x = []
+    cand_y = []
+    ver_y = []
+    for distance in distances_cand:
+        cand_x.append(candidate_predictions[distance][0] * IMAGE_WIDTH)
+        cand_y.append(-1 * candidate_predictions[distance][1] * IMAGE_HEIGHT)
 
+    for distance in distances_ver:
+        ver_x.append(verifier_predictions[distance][0] * IMAGE_WIDTH)
+        ver_y.append(-1 * verifier_predictions[distance][1] * IMAGE_HEIGHT)
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    ax.plot3D(ver_x, ver_y, distances_ver,  'o', label='Verifier')
+    ax.plot3D(cand_x, cand_y, distances_cand,  'o', label='Candidate')
+
+    plt.xlabel('Horizontal Axis of Image')
+    plt.ylabel('Vertical Axis of Image')
+    plt.title('3-Dimensional Bounding Box Center Trace')
+    plt.legend(loc="upper left")
+    plt.ylim(-IMAGE_HEIGHT, 0)
+    plt.xlim(0, IMAGE_WIDTH)
+
+    plt.show()
+
+three_dimensional_bounding_box_trace(df['candidate'], df['verifier'])
 
 def find_angle(xmin, xmax, center_of_image):
     bb_width = (xmax - xmin) / 2
