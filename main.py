@@ -404,7 +404,7 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
 
 df = df_for_avgs()
 # complementary_df = find_complementary_image(df, 'candidate', 15, 50)
-calculate_center_point_error(df, 50)
+# calculate_center_point_error(df, 50)
 
 
 # draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_corner)
@@ -427,13 +427,34 @@ calculate_center_point_error(df, 50)
 # show the movement of the center along the x-y plane when the
 # car moves further and closer to the car
 def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions):
+    # firstly, let us populate the x and y points
+    # get center bounding box average for two dimensional bounding box trace
+    print(verifier_predictions)
+    pass
+    distances_cand = [15, 20, 25, 30, 35, 40, 45, 50]
+    ver_cand = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+    cand_x = []
+    ver_x = []
+    cand_y = []
+    ver_y = []
+    for distance in distances_cand:
+       cand_x.append(candidate_predictions[distance][0] * IMAGE_WIDTH)
+       cand_y.append(candidate_predictions[distance][1] * IMAGE_HEIGHT)
 
+    for distance in ver_cand:
+        ver_x.append(verifier_predictions[distance][0] * IMAGE_WIDTH)
+        ver_y.append(verifier_predictions[distance][0] * IMAGE_HEIGHT)
+
+
+
+two_dimensional_bounding_box_trace(df['candidate'], df['verifier'])
 
 # create a 3d plot showing the bounding box trace
 # moreover, x-y plane of the plot is the image, and the axis
 # perpendicular to the x-y plane is the actaul real life
 # distance away from the car
 def three_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions):
+    pass
 
 
 def find_angle(xmin, xmax, center_of_image):
