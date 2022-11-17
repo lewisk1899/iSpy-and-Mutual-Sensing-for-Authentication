@@ -113,7 +113,7 @@ def get_avgs(dic):
                 bb_width_sum += float(dic[distance_bin][file][0].split(' ')[3])
                 bb_height_sum += float(dic[distance_bin][file][0].split(' ')[4])
                 entry = dic[distance_bin][file][0].split(' ')[7].strip()
-                print(file)
+                # print(file)
                 angle += float(entry)
                 counter += 1
         # average bounding boxes
@@ -128,12 +128,14 @@ def get_avgs(dic):
     return nested_dic
 
 
+
+
 def df_for_avgs():
     # go through all files, for each distance bin create a file create a pandas dataframe [candidate/verifier,
     # 50/100, distance_bin, average_bb_center, avg_bb_width, avg_bb_height]
     header = ['candidate or verifier', 'distance_bin', 'x_center_avg', 'y_center_avg', 'bb_width_avg', 'bb_height_avg']
-    can_dic = gather_label_paths("candidate", "100_feet_imgs")
-    ver_dic = gather_label_paths("verifier", "100_feet_imgs")
+    can_dic = gather_label_paths("candidate", "50_feet_imgs")
+    ver_dic = gather_label_paths("verifier", "50_feet_imgs")
 
     # can_dic = gather_label_paths("candidate", "50_feet_imgs")
     # ver_dic = gather_label_paths("verifier", "50_feet_imgs")
@@ -354,6 +356,60 @@ def error(ground_truth, estimates):
     print(angle_error)
     return x, hypotenuse_error, angle_error
 
+def visually_compare_ground_truth_and_respective_perspective(df):
+    # only utilizing the 50 foot data, as the 100 foot data had some error
+    # we want to compare: (distance_cand_i_approx, lane_width, theta_cand_i_approx),
+    # (distance_ver_i_approx, lane_width, theta_ver_i_approx),
+    # (distance_cand_i_gt, , theta_cand_i_gt), (distance_cand_i_gt, lane_width, theta_cand_i_gt)
+    # note that distance_cand_i_approx, theta_cand_i_approx corresponding to 5 feet, will have be matched with
+    # (distance_ver_i_approx, theta_ver_i_approx) corresponding to 45 feet
+    cand_df = df['candidate']
+    ver_df = df['verifier']
+    print(cand_df.keys().sort_values())
+    print(ver_df.keys().sort_values())
+    ground_truth_points_cand = []
+    ground_truth_points_ver = []
+    prediction_points_cand = []
+    prediction_points_ver = []
+
+    if len(cand_df.keys().sort_values()) > len(ver_df.keys().sort_values()):
+        pass
+    elif len(cand_df.keys().sort_values()) < len(ver_df.keys().sort_values()):
+        for index in range(len(cand_df.keys().sort_values()) - 1):
+            corresponding_ver_dist = 50 - cand_df.keys().sort_values()[index]
+            cand_angle_pred = cand_df[cand_df.keys().sort_values()[index]][4] # referring to the angle stored in the
+            # dataframe
+            cand_depth_pred = LANE_WIDTH/math.atan((cand_angle_pred*math.pi)/180) # referring to the depth prediction
+            # of the target vehicle from verifier perspective
+            # populating candidate predictions and ground truth
+            prediction_points_cand.append((cand_df.keys().sort_values()[index], cand_depth_pred, cand_angle_pred))
+            ground_truth_distance_cand = cand_df.keys().sort_values()[index]
+            ground_truth_angle_cand = math.atan(LANE_WIDTH / cand_df.keys().sort_values()[index]) * 180 * (1 / math.pi)
+            # if ground_truth_angle_cand < 0:
+            #     ground_truth_angle_cand = ground_truth_angle_cand + 360
+            ground_truth_points_cand.append((ground_truth_distance_cand, ground_truth_angle_cand))
+
+            # populating verification predictions and ground truth
+            ver_angle_pred = ver_df[corresponding_ver_dist][4] # referring to the angle stored in the dataframe
+            ver_distance_pred = LANE_WIDTH/math.atan((ver_angle_pred*math.pi)/180) # referring to the depth
+            # prediction of the target vehicle from verifier perspective
+            ground_truth_angle_ver = math.atan(LANE_WIDTH/corresponding_ver_dist)*(180/math.pi)
+            # if ground_truth_angle_ver < 0:
+            #     ground_truth_angle_ver = ground_truth_angle_ver + 360
+            prediction_points_ver.append((corresponding_ver_dist, ver_distance_pred, ver_angle_pred))
+            ground_truth_points_ver.append((corresponding_ver_dist + 5, ground_truth_angle_ver))
+
+        print("Ground Truth for Candidate")
+        print(ground_truth_points_cand)
+        print("Prediction for Candidate")
+        print(prediction_points_cand)
+        print("Ground Truth for Verifier")
+        print(ground_truth_points_ver)
+        print("Prediction for Verifier")
+        print(prediction_points_ver)
+
+
+
 
 ###############################################################################################################
 ######################################### PLOTTING ##############################################################
@@ -409,6 +465,8 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
 
 df = df_for_avgs()
 print(df)
+
+visually_compare_ground_truth_and_respective_perspective(df)
 # complementary_df = find_complementary_image(df, 'candidate', 15, 50)
 # calculate_center_point_error(df, 50)
 
@@ -419,19 +477,6 @@ print(df)
 #     candidate_prediction="0 0.900422 0.520337 0.193204 0.241733 0.893444 7.2 27.12")
 
 
-###############################################################################################
-####################################### IMPLEMENTATION ########################################
-# path_to_weights = 'weights_for_mutual_sensing.pt'
-# # os.system("pip install -r requirements.txt") # RUN ONCE PRIOR TO LOADING MODEL
-# model = torch.hub.load('ultralytics/yolov5', 'custom', path=path_to_weights, force_reload=False)  # default
-# model.conf = 0.60
-# image_path = "C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\candidate\\50ft\\IMG_8721.JPG"
-# pp = pprint.PrettyPrinter(width=41, compact=True)
-
-# create a 2d plot showing the bounding box trace
-# moreover, x-y plane of the plot is the image, said plot will
-# show the movement of the center along the x-y plane when the
-# car moves further and closer to the car
 def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions, size_bin):
     # firstly, let us populate the x and y points
     # get center bounding box average for two-dimensional bounding box trace
@@ -464,7 +509,7 @@ def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictio
 
     plt.savefig('2-Dimensional Bounding Box Trace')
 
-two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100)
+#two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100)
 
 # create a 3d plot showing the bounding box trace
 # moreover, x-y plane of the plot is the image, and the axis
@@ -505,7 +550,22 @@ def three_dimensional_bounding_box_trace(candidate_predictions, verifier_predict
 
     plt.show()
 
-three_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100)
+#three_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100)
+
+###############################################################################################
+####################################### IMPLEMENTATION ########################################
+# path_to_weights = 'weights_for_mutual_sensing.pt'
+# # os.system("pip install -r requirements.txt") # RUN ONCE PRIOR TO LOADING MODEL
+# model = torch.hub.load('ultralytics/yolov5', 'custom', path=path_to_weights, force_reload=False)  # default
+# model.conf = 0.60
+# image_path = "C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\candidate\\50ft\\IMG_8721.JPG"
+# pp = pprint.PrettyPrinter(width=41, compact=True)
+
+# create a 2d plot showing the bounding box trace
+# moreover, x-y plane of the plot is the image, said plot will
+# show the movement of the center along the x-y plane when the
+# car moves further and closer to the car
+
 
 def find_angle(xmin, xmax, center_of_image):
     bb_width = (xmax - xmin) / 2
