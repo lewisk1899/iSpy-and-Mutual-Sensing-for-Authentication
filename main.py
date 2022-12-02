@@ -62,7 +62,8 @@ def approximate_theta_c_from_theta_v(d_claimed, theta_v):
 
 def translate(theta_c_hat, theta_v, center_of_bb_x):
     # find x_c_hat
-    return (math.tan(theta_c_hat * math.pi / 180) / math.tan(theta_v * math.pi / 180)) * center_of_bb_x + IMAGE_WIDTH/2
+    return (math.tan(theta_c_hat * math.pi / 180) / math.tan(
+        theta_v * math.pi / 180)) * center_of_bb_x + IMAGE_WIDTH / 2
 
 
 def test_translate():
@@ -126,8 +127,6 @@ def get_avgs(dic):
                                           bb_height_avg, angle]})  # nested dictionary disregarding the file name
         # two_d_data.append([can_ver_str, distance_bin, x_center_avg, y_center_avg, bb_width_avg, bb_height_avg])
     return nested_dic
-
-
 
 
 def df_for_avgs():
@@ -223,27 +222,30 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
         candidate_per_rotated_ver_per = [top_left_corner[0], top_left_corner[1], bottom_right_corner[0],
                                          bottom_right_corner[1]]
         cand_gt = [candidate_prediction[1] - candidate_prediction[3] / 2,
-                  candidate_prediction[2] - candidate_prediction[4] / 2,
-                  candidate_prediction[1] + candidate_prediction[3] / 2,
-                  candidate_prediction[2] + candidate_prediction[4] / 2]
+                   candidate_prediction[2] - candidate_prediction[4] / 2,
+                   candidate_prediction[1] + candidate_prediction[3] / 2,
+                   candidate_prediction[2] + candidate_prediction[4] / 2]
         ver_gt = [verifier_prediction[1] - verifier_prediction[3] / 2,
                   verifier_prediction[2] - verifier_prediction[4] / 2,
                   verifier_prediction[1] + verifier_prediction[3] / 2,
                   verifier_prediction[2] + verifier_prediction[4] / 2]
         # another approach by trying to scale
-        center_of_bb_x = verifier_prediction[1] # center of the bounding box from candidate perspective
+        center_of_bb_x = verifier_prediction[1]  # center of the bounding box from candidate perspective
         theta_c_hat = approximate_theta_c_from_theta_v(d_claimed=50, theta_v=verifier_prediction[5])
-        x_c_hat = translate(theta_c_hat=theta_c_hat,theta_v=verifier_prediction[5], center_of_bb_x=center_of_bb_x) # gets center of bb in image domain from verifier perspective
-        cand_pred = [(int(candidate_prediction[1] - candidate_prediction[3]/2), int(candidate_prediction[2] - candidate_prediction[4]/2)),
-                     (int(candidate_prediction[1] + candidate_prediction[3]/2), int(candidate_prediction[2] + candidate_prediction[4]/2))]
+        x_c_hat = translate(theta_c_hat=theta_c_hat, theta_v=verifier_prediction[5],
+                            center_of_bb_x=center_of_bb_x)  # gets center of bb in image domain from verifier perspective
+        cand_pred = [(int(candidate_prediction[1] - candidate_prediction[3] / 2),
+                      int(candidate_prediction[2] - candidate_prediction[4] / 2)),
+                     (int(candidate_prediction[1] + candidate_prediction[3] / 2),
+                      int(candidate_prediction[2] + candidate_prediction[4] / 2))]
         new_prediction = [
             (int(x_c_hat - verifier_prediction[3] / 2), int(verifier_prediction[2] - verifier_prediction[4] / 2)),
             (int(x_c_hat + verifier_prediction[3] / 2), int(verifier_prediction[2] + verifier_prediction[4] / 2))]
         # iou, common_area = IoU(ver_gt, candidate_per_rotated_ver_per)
         iou, common_area = IoU(cand_gt, [int(x_c_hat - verifier_prediction[3] / 2),
-                                        int(verifier_prediction[2] - verifier_prediction[4] / 2),
-                                        int(x_c_hat + verifier_prediction[3] / 2),
-                                        int(verifier_prediction[2] + verifier_prediction[4] / 2)])
+                                         int(verifier_prediction[2] - verifier_prediction[4] / 2),
+                                         int(x_c_hat + verifier_prediction[3] / 2),
+                                         int(verifier_prediction[2] + verifier_prediction[4] / 2)])
         if index == 45:
             # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
             draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/45ft/out_images/IMG_8641.JPG',
@@ -356,6 +358,7 @@ def error(ground_truth, estimates):
     print(angle_error)
     return x, hypotenuse_error, angle_error
 
+
 def visually_compare_ground_truth_and_respective_perspective(df):
     # only utilizing the 50 foot data, as the 100 foot data had some error
     # we want to compare: (distance_cand_i_approx, lane_width, theta_cand_i_approx),
@@ -377,9 +380,10 @@ def visually_compare_ground_truth_and_respective_perspective(df):
     elif len(cand_df.keys().sort_values()) < len(ver_df.keys().sort_values()):
         for index in range(len(cand_df.keys().sort_values()) - 1):
             corresponding_ver_dist = 50 - cand_df.keys().sort_values()[index]
-            cand_angle_pred = cand_df[cand_df.keys().sort_values()[index]][4] # referring to the angle stored in the
+            cand_angle_pred = cand_df[cand_df.keys().sort_values()[index]][4]  # referring to the angle stored in the
             # dataframe
-            cand_depth_pred = LANE_WIDTH/math.atan((cand_angle_pred*math.pi)/180) # referring to the depth prediction
+            cand_depth_pred = LANE_WIDTH / math.atan(
+                (cand_angle_pred * math.pi) / 180)  # referring to the depth prediction
             # of the target vehicle from verifier perspective
             # populating candidate predictions and ground truth
             prediction_points_cand.append((cand_df.keys().sort_values()[index], cand_depth_pred, cand_angle_pred))
@@ -390,14 +394,14 @@ def visually_compare_ground_truth_and_respective_perspective(df):
             ground_truth_points_cand.append((ground_truth_distance_cand, ground_truth_angle_cand))
 
             # populating verification predictions and ground truth
-            ver_angle_pred = ver_df[corresponding_ver_dist][4] # referring to the angle stored in the dataframe
-            ver_distance_pred = LANE_WIDTH/math.atan((ver_angle_pred*math.pi)/180) # referring to the depth
+            ver_angle_pred = ver_df[corresponding_ver_dist][4]  # referring to the angle stored in the dataframe
+            ver_distance_pred = LANE_WIDTH / math.atan((ver_angle_pred * math.pi) / 180)  # referring to the depth
             # prediction of the target vehicle from verifier perspective
-            ground_truth_angle_ver = math.atan(LANE_WIDTH/corresponding_ver_dist)*(180/math.pi)
+            ground_truth_angle_ver = math.atan(LANE_WIDTH / corresponding_ver_dist) * (180 / math.pi)
             # if ground_truth_angle_ver < 0:
             #     ground_truth_angle_ver = ground_truth_angle_ver + 360
             prediction_points_ver.append((corresponding_ver_dist, ver_distance_pred, ver_angle_pred))
-            ground_truth_points_ver.append((corresponding_ver_dist + 5, ground_truth_angle_ver))
+            ground_truth_points_ver.append((corresponding_ver_dist, ground_truth_angle_ver))
 
         print("Ground Truth for Candidate")
         print(ground_truth_points_cand)
@@ -407,8 +411,6 @@ def visually_compare_ground_truth_and_respective_perspective(df):
         print(ground_truth_points_ver)
         print("Prediction for Verifier")
         print(prediction_points_ver)
-
-
 
 
 ###############################################################################################################
@@ -466,7 +468,8 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
 df = df_for_avgs()
 print(df)
 
-visually_compare_ground_truth_and_respective_perspective(df)
+
+# visually_compare_ground_truth_and_respective_perspective(df)
 # complementary_df = find_complementary_image(df, 'candidate', 15, 50)
 # calculate_center_point_error(df, 50)
 
@@ -477,7 +480,7 @@ visually_compare_ground_truth_and_respective_perspective(df)
 #     candidate_prediction="0 0.900422 0.520337 0.193204 0.241733 0.893444 7.2 27.12")
 
 
-def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions, size_bin):
+def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions, size_bin, translation):
     # firstly, let us populate the x and y points
     # get center bounding box average for two-dimensional bounding box trace
     if size_bin == 100:
@@ -491,14 +494,19 @@ def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictio
     cand_y = []
     ver_y = []
     for distance in distances_cand:
-       cand_x.append(candidate_predictions[distance][0] * IMAGE_WIDTH)
-       cand_y.append(-1*candidate_predictions[distance][1] * IMAGE_HEIGHT)
+        if translation:
+            original_x = candidate_predictions[distance][0] * IMAGE_WIDTH
+            distance_from_center = original_x - IMAGE_WIDTH / 2
+            cand_x.append(distance_from_center)
+        else:
+            cand_x.append(candidate_predictions[distance][0] * IMAGE_WIDTH)
+        cand_y.append(-1 * candidate_predictions[distance][1] * IMAGE_HEIGHT)
 
     for distance in distances_ver:
         ver_x.append(verifier_predictions[distance][0] * IMAGE_WIDTH)
-        ver_y.append(-1*verifier_predictions[distance][1] * IMAGE_HEIGHT)
+        ver_y.append(-1 * verifier_predictions[distance][1] * IMAGE_HEIGHT)
 
-    plt.plot(ver_x, ver_y,'o', label='Verifier')
+    plt.plot(ver_x, ver_y, 'o', label='Verifier')
     plt.plot(cand_x, cand_y, 'o', label='Candidate')
     plt.xlabel('Horizontal Axis of Image')
     plt.ylabel('Vertical Axis of Image')
@@ -509,48 +517,112 @@ def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictio
 
     plt.savefig('2-Dimensional Bounding Box Trace')
 
-#two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100)
+
+def pixel_coordinates_3d(candidate_predictions, verifier_predictions, size_bin):
+    if size_bin == 100:
+        distances_cand = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+        distances_ver = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+        distances_ver.reverse()
+    elif size_bin == 50:
+        distances_cand = [15, 20, 25, 30, 35, 40, 45, 50]
+        distances_ver = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+        distances_ver.reverse()
+
+    candidate_pixels = []
+    verifier_pixels = []
+
+    for distance in distances_cand:
+        cand_x = candidate_predictions[distance][0] * IMAGE_WIDTH
+        cand_y = -1 * candidate_predictions[distance][1] * IMAGE_HEIGHT
+        candidate_pixels.append((distance, cand_x, cand_y))
+
+    for distance in distances_ver:
+        ver_x = verifier_predictions[distance][0] * IMAGE_WIDTH
+        ver_y = -1 * verifier_predictions[distance][1] * IMAGE_HEIGHT
+        verifier_pixels.append((distance, ver_x, ver_y))
+
+    return candidate_pixels, verifier_pixels
+
+
+def find_corresponding_data_point(distance, verifier_pixels, size_bin):
+    for pixel_coord in verifier_pixels:
+        if pixel_coord[0] == size_bin - distance:
+            return pixel_coord
+    return None
+
+
+def plot_pixel_distance_vs_complementary_points(candidate_predictions, verifier_predictions, size_bin):
+    candidate_pixels, verifier_pixels = pixel_coordinates_3d(candidate_predictions, verifier_predictions, size_bin)
+    difference = []
+    x_coord_sum = 0
+    iterations = 0
+    for candidate_pixel in candidate_pixels:
+        complementary_coord = find_corresponding_data_point(candidate_pixel[0], verifier_pixels, size_bin)
+        if complementary_coord is not None:
+            dif = (candidate_pixel[0], abs(complementary_coord[1] - candidate_pixel[1]),
+                   abs(complementary_coord[2] - candidate_pixel[2]))
+            difference.append(dif)
+            print('Distance', candidate_pixel[0])
+            print(candidate_pixel)
+            print(complementary_coord)
+            print(dif)
+            x_coord_sum += abs(complementary_coord[1] - candidate_pixel[1])
+            iterations += 1
+    avg = x_coord_sum/iterations
+    print(avg)
+    print(candidate_pixels)
+    print(verifier_pixels)
+
+    dist = []
+    x_dif = []
+    for dif in difference:
+        dist.append(dif[0])
+        x_dif.append(dif[1])
+
+    plt.plot(dist, x_dif, 'o')
+    plt.xlabel('Distance wrt Target from Candidate')
+    plt.ylabel('Difference in BB X Coord Pixels wrt Cand and Ver Perspective')
+    plt.title('Difference in X Coordinate Pixels vs Target Vehicle Euclidean Position')
+
+    plt.savefig('Diff in X Coord Pixels vs Target Euclid Pos')
+
+
+plot_pixel_distance_vs_complementary_points(df['candidate'], df['verifier'], size_bin=50)
+
+
+# two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=50, translation=False)
 
 # create a 3d plot showing the bounding box trace
 # moreover, x-y plane of the plot is the image, and the axis
 # perpendicular to the x-y plane is the actaul real life
 # distance away from the car
-def three_dimensional_bounding_box_trace(candidate_predictions, verifier_predictions, size_bin):
-    # firstly, let us populate the x and y points
-    # get center bounding box average for two-dimensional bounding box trace
-    if size_bin == 100:
-        distances_cand = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
-        distances_ver = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
-    else:
-        distances_cand = [15, 20, 25, 30, 35, 40, 45, 50]
-        distances_ver = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
-    cand_x = []
-    ver_x = []
-    cand_y = []
-    ver_y = []
-    for distance in distances_cand:
-        cand_x.append(candidate_predictions[distance][0] * IMAGE_WIDTH)
-        cand_y.append(-1 * candidate_predictions[distance][1] * IMAGE_HEIGHT)
+# def three_dimensional_bounding_box_trace(size_bin, translation):
+#     # firstly, let us populate the x and y points
+#     # get center bounding box average for two-dimensional bounding box trace
+#     fig = plt.figure()
+#     ax = plt.axes(projection='3d')
+#     ax.plot3D(ver_x, ver_y, distances_ver, 'o', label='Verifier')
+#     ax.plot3D(cand_x, cand_y, distances_cand, 'o', label='Candidate')
+#
+#     plt.xlabel('Horizontal Axis of Image')
+#     plt.ylabel('Vertical Axis of Image')
+#     plt.title('3-Dimensional Bounding Box Center Trace')
+#     plt.legend(loc="upper left")
+#     plt.ylim(-IMAGE_HEIGHT, 0)
+#     plt.xlim(0, IMAGE_WIDTH)
+#
+#     print(cand_x)
+#     print(cand_y)
+#     print(distances_cand)
+#     print(ver_x)
+#     print(ver_y)
+#     print(distances_ver)
+#
+#     plt.show()
 
-    for distance in distances_ver:
-        ver_x.append(verifier_predictions[distance][0] * IMAGE_WIDTH)
-        ver_y.append(-1 * verifier_predictions[distance][1] * IMAGE_HEIGHT)
 
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    ax.plot3D(ver_x, ver_y, distances_ver,  'o', label='Verifier')
-    ax.plot3D(cand_x, cand_y, distances_cand,  'o', label='Candidate')
+# three_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=1, translation=True)
 
-    plt.xlabel('Horizontal Axis of Image')
-    plt.ylabel('Vertical Axis of Image')
-    plt.title('3-Dimensional Bounding Box Center Trace')
-    plt.legend(loc="upper left")
-    plt.ylim(-IMAGE_HEIGHT, 0)
-    plt.xlim(0, IMAGE_WIDTH)
-
-    plt.show()
-
-#three_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100)
 
 ###############################################################################################
 ####################################### IMPLEMENTATION ########################################
