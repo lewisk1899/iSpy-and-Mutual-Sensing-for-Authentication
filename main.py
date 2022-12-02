@@ -193,10 +193,6 @@ def find_complementary_df(df, cand_or_dist, distance_bin, claimed_distance):
         return df[('candidate', complementary_distance_bin)]
 
 
-def find_complementary_image(cand_or_dist, distance_bin, claimed_distance):
-    pass
-
-
 def calculate_center_point_error(data_dataframe, claimed_distance):
     # iterate through all the CANDIDATE data points
     # ('candidate', verifier)
@@ -462,7 +458,7 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
     # color = (0, 0, 255)
     cv2.rectangle(im, top_left_corner, bot_right_corner, color, 5)
     # cv2.putText(im, 'Rotated Bounding Box', (top_left_corner[0], top_left_corner[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 2,(36, 255, 12), 2)
-    cv2.imwrite('test\\new_method_45_ft_from_cand.jpg', im)
+    cv2.imwrite('test\\shift_by_avg_10_ft_from_cand.jpg', im)
 
 
 df = df_for_avgs()
@@ -568,7 +564,7 @@ def plot_pixel_distance_vs_complementary_points(candidate_predictions, verifier_
             print(dif)
             x_coord_sum += abs(complementary_coord[1] - candidate_pixel[1])
             iterations += 1
-    avg = x_coord_sum/iterations
+    avg = x_coord_sum / iterations
     print(avg)
     print(candidate_pixels)
     print(verifier_pixels)
@@ -587,7 +583,52 @@ def plot_pixel_distance_vs_complementary_points(candidate_predictions, verifier_
     plt.savefig('Diff in X Coord Pixels vs Target Euclid Pos')
 
 
-plot_pixel_distance_vs_complementary_points(df['candidate'], df['verifier'], size_bin=50)
+# shift all candidate bb predictions to the verifier by the average amount 2695
+def shift_by_average(data_dataframe, claimed_distance, average):
+    candidate_second_key = [15, 20, 25, 30, 35, 40, 45]  # target is this far away from the candidate
+    iou_list = []
+    i = 0
+    for index in candidate_second_key:
+        cand_df = data_dataframe[('candidate', index)]
+        complementary_dataframe = find_complementary_df(df, 'candidate', index, claimed_distance)
+        # un-normalizing
+        verifier_prediction = [0, IMAGE_WIDTH * complementary_dataframe[0],
+                               IMAGE_HEIGHT * complementary_dataframe[1],
+                               IMAGE_WIDTH * complementary_dataframe[2],
+                               IMAGE_HEIGHT * complementary_dataframe[3], complementary_dataframe[4]]
+        candidate_prediction = [0, IMAGE_WIDTH * cand_df[0], IMAGE_HEIGHT * cand_df[1], IMAGE_WIDTH * cand_df[2],
+                                IMAGE_HEIGHT * cand_df[3], cand_df[4]]
+        center_of_bb_x = verifier_prediction[1]  # center of the bounding box from candidate perspective
+        x_c_hat = center_of_bb_x + average
+        cand_gt = [candidate_prediction[1] - candidate_prediction[3] / 2,
+                   candidate_prediction[2] - candidate_prediction[4] / 2,
+                   candidate_prediction[1] + candidate_prediction[3] / 2,
+                   candidate_prediction[2] + candidate_prediction[4] / 2]
+        new_prediction = [
+            (int(x_c_hat - verifier_prediction[3] / 2), int(verifier_prediction[2] - verifier_prediction[4] / 2)),
+            (int(x_c_hat + verifier_prediction[3] / 2), int(verifier_prediction[2] + verifier_prediction[4] / 2))]
+        iou, common_area = IoU(cand_gt, [int(x_c_hat - verifier_prediction[3] / 2),
+                                         int(verifier_prediction[2] - verifier_prediction[4] / 2),
+                                         int(x_c_hat + verifier_prediction[3] / 2),
+                                         int(verifier_prediction[2] + verifier_prediction[4] / 2)])
+        if index == 10:
+            # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
+            draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/10ft/out_images/IMG_8629.JPG',
+                                            new_prediction[0], new_prediction[1],
+                                            (0, 0, 255))
+            # draw_bounding_boxes_on_verifier('test\\new_method_45_ft_from_cand.jpg', cand_pred[0], cand_pred[1],
+            #                                 (255, 0, 0))
+            # draw_bounding_boxes_on_verifier('test\\new_method_45_ft_from_cand.jpg',
+            #                                 (int(common_area[0]), int(common_area[1])),
+            #                                 (int(common_area[2]), int(common_area[3])), (0, 255, 0))
+        iou_list.append(iou)
+    print(iou_list)
+
+
+shift_by_average(df, claimed_distance=50, average=2695)
+
+
+# plot_pixel_distance_vs_complementary_points(df['candidate'], df['verifier'], size_bin=50)
 
 
 # two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=50, translation=False)
