@@ -242,7 +242,7 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
                                          int(verifier_prediction[2] - verifier_prediction[4] / 2),
                                          int(x_c_hat + verifier_prediction[3] / 2),
                                          int(verifier_prediction[2] + verifier_prediction[4] / 2)])
-        if index == 45:
+        if index == 0:
             # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
             draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/45ft/out_images/IMG_8641.JPG',
                                             new_prediction[0], new_prediction[1],
@@ -254,7 +254,14 @@ def calculate_center_point_error(data_dataframe, claimed_distance):
             #                                 (int(common_area[2]), int(common_area[3])), (0, 255, 0))
 
         iou_list.append(iou)
-    plot_pixel_dist(candidate_second_key, euclidean_distance)
+    # print(iou_list)
+    # plt.plot(candidate_second_key, iou_list, 'o')
+    # plt.xlabel('Distance wrt Target from Candidate')
+    # plt.ylabel('IoU of Cand and Ver BB when shifting BB by Rotating')
+    # plt.title('IoU vs Distance from Cand')
+    #
+    # plt.savefig('IoU vs Distance from Cand_Rotate_.png')
+    # plot_pixel_dist(candidate_second_key, euclidean_distance)
 
 
 # bb_center is a tuple consisting of x and y frame pixels that are the center of bb in frame
@@ -337,7 +344,7 @@ def create_2d_map(theta_v_s):
     plt.ylim(-20, 100)
     plt.grid()
     plt.plot(x, y, marker="o", markersize=10, markeredgecolor="red", markerfacecolor="red")
-    plt.savefig("mygraph.png")
+    plt.show()
 
 
 def error(ground_truth, estimates):
@@ -623,7 +630,12 @@ def shift_by_average(data_dataframe, claimed_distance, average):
             #                                 (int(common_area[2]), int(common_area[3])), (0, 255, 0))
         iou_list.append(iou)
     print(iou_list)
+    plt.plot(candidate_second_key, iou_list, 'o')
+    plt.xlabel('Distance wrt Target from Candidate')
+    plt.ylabel('IoU of Cand and Ver BB when shifting BB by Constant')
+    plt.title('IoU vs Distance from Cand')
 
+    plt.savefig('IoU vs Distance from Cand_Avg Shift_.png')
 
 shift_by_average(df, claimed_distance=50, average=2695)
 
