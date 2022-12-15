@@ -637,7 +637,53 @@ def shift_by_average(data_dataframe, claimed_distance, average):
 
     plt.savefig('IoU vs Distance from Cand_Avg Shift_.png')
 
-shift_by_average(df, claimed_distance=50, average=2695)
+
+# shift_by_average(df, claimed_distance=50, average=2695)
+
+def convert_normalized_to_pixels(x, y):
+    xp = x * IMAGE_WIDTH
+    yp = y * IMAGE_HEIGHT
+    return xp - IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2 - yp
+
+
+def trial_1_inverse_perspective_transformation(xp_v, yp_v):
+    verifier_lens_world_coordinates = np.array([0, 0, 3.28084])  # lens coordinates of the candidate vehicle assume lens
+    # height of meter
+    candidate_lens_world_coordinates = np.array([0, 9.144, 3.28084])
+    scalar_factor = 1
+    ver_yaw = 0
+    cand_yaw = math.pi
+    pitch = 0
+    IPT = np.array([xp * math.cos(ver_yaw) - FOCAL_LENGTH * math.cos(pitch) * math.sin(ver_yaw) + yp * math.sin(
+        pitch) * math.sin(ver_yaw),
+                    xp * math.sin(ver_yaw) + FOCAL_LENGTH * math.cos(pitch) * math.sin(ver_yaw) - yp * math.sin(
+                        pitch) * math.sin(ver_yaw),
+                    FOCAL_LENGTH * math.sin(pitch) + yp * math.cos(pitch)])
+    real_coord = verifier_lens_world_coordinates + scalar_factor * IPT
+
+    cand_IPT = real_coord - candidate_lens_world_coordinates
+
+
+def trial_2_inverse_perspective_transformation(xp_v, yp_v):
+    verifier_lens_world_coordinates = np.array([0, 0, 3.28084])  # lens coordinates of the candidate vehicle assume lens
+    # height of meter
+    candidate_lens_world_coordinates = np.array([0, 9.144, 3.28084])
+    scalar_factor = 1
+    ver_yaw = 0
+    cand_yaw = math.pi
+    pitch = 0
+
+    x = 0 - (3.28084 * xp_v * math.cos(ver_yaw) + (
+                yp_v * math.sin(pitch) - FOCAL_LENGTH * math.cos(pitch)) * 3.28084 * math.sin(ver_yaw)) / (
+                    yp * math.cos(pitch) + FOCAL_LENGTH * math.sin(pitch))
+    y = 0 - (3.28084 * xp_v * math.sin(ver_yaw) + (yp_v * math.sin(pitch) - FOCAL_LENGTH * math.cos(pitch)) * 3.28084 * math.sin(
+        ver_yaw)) / (yp * math.cos(pitch) + FOCAL_LENGTH * math.sin(pitch))
+    print(x)
+    print(y)
+
+
+xp, yp = convert_normalized_to_pixels(0.179688, 0.527282)
+trial_2_inverse_perspective_transformation(xp, yp)
 
 
 # plot_pixel_distance_vs_complementary_points(df['candidate'], df['verifier'], size_bin=50)
