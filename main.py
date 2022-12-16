@@ -133,8 +133,8 @@ def df_for_avgs():
     # go through all files, for each distance bin create a file create a pandas dataframe [candidate/verifier,
     # 50/100, distance_bin, average_bb_center, avg_bb_width, avg_bb_height]
     header = ['candidate or verifier', 'distance_bin', 'x_center_avg', 'y_center_avg', 'bb_width_avg', 'bb_height_avg']
-    can_dic = gather_label_paths("candidate", "50_feet_imgs")
-    ver_dic = gather_label_paths("verifier", "50_feet_imgs")
+    can_dic = gather_label_paths("candidate", "100_feet_imgs")
+    ver_dic = gather_label_paths("verifier", "100_feet_imgs")
 
     # can_dic = gather_label_paths("candidate", "50_feet_imgs")
     # ver_dic = gather_label_paths("verifier", "50_feet_imgs")
@@ -465,7 +465,7 @@ def draw_bounding_boxes_on_verifier(verifier_image, top_left_corner, bot_right_c
     # color = (0, 0, 255)
     cv2.rectangle(im, top_left_corner, bot_right_corner, color, 5)
     # cv2.putText(im, 'Rotated Bounding Box', (top_left_corner[0], top_left_corner[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 2,(36, 255, 12), 2)
-    cv2.imwrite('test\\shift_by_avg_10_ft_from_cand.jpg', im)
+    cv2.imwrite('test\\100_ft_shift_by_avg_95_ft_from_cand.jpg', im)
 
 
 df = df_for_avgs()
@@ -518,7 +518,8 @@ def two_dimensional_bounding_box_trace(candidate_predictions, verifier_predictio
     plt.ylim(-IMAGE_HEIGHT, 0)
     plt.xlim(0, IMAGE_WIDTH)
 
-    plt.savefig('2-Dimensional Bounding Box Trace')
+    # plt.savefig('2-Dimensional Bounding Box Trace')
+    plt.show()
 
 
 def pixel_coordinates_3d(candidate_predictions, verifier_predictions, size_bin):
@@ -562,14 +563,14 @@ def plot_pixel_distance_vs_complementary_points(candidate_predictions, verifier_
     for candidate_pixel in candidate_pixels:
         complementary_coord = find_corresponding_data_point(candidate_pixel[0], verifier_pixels, size_bin)
         if complementary_coord is not None:
-            dif = (candidate_pixel[0], abs(complementary_coord[1] - candidate_pixel[1]),
+            dif = (candidate_pixel[0], abs(complementary_coord[1] - candidate_pixel[1] - 400),
                    abs(complementary_coord[2] - candidate_pixel[2]))
             difference.append(dif)
             print('Distance', candidate_pixel[0])
             print(candidate_pixel)
             print(complementary_coord)
             print(dif)
-            x_coord_sum += abs(complementary_coord[1] - candidate_pixel[1])
+            x_coord_sum += abs(complementary_coord[1] - candidate_pixel[1] - 400)
             iterations += 1
     avg = x_coord_sum / iterations
     print(avg)
@@ -587,12 +588,14 @@ def plot_pixel_distance_vs_complementary_points(candidate_predictions, verifier_
     plt.ylabel('Difference in BB X Coord Pixels wrt Cand and Ver Perspective')
     plt.title('Difference in X Coordinate Pixels vs Target Vehicle Euclidean Position')
 
-    plt.savefig('Diff in X Coord Pixels vs Target Euclid Pos')
+    plt.show()
 
 
 # shift all candidate bb predictions to the verifier by the average amount 2695
 def shift_by_average(data_dataframe, claimed_distance, average):
-    candidate_second_key = [15, 20, 25, 30, 35, 40, 45]  # target is this far away from the candidate
+    # candidate_second_key = [15, 20, 25, 30, 35, 40, 45]  # target is this far away from the candidate for 50 foot data set
+    candidate_second_key = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90,
+                            95]  # target is this far away from the candidate
     iou_list = []
     i = 0
     for index in candidate_second_key:
@@ -618,9 +621,9 @@ def shift_by_average(data_dataframe, claimed_distance, average):
                                          int(verifier_prediction[2] - verifier_prediction[4] / 2),
                                          int(x_c_hat + verifier_prediction[3] / 2),
                                          int(verifier_prediction[2] + verifier_prediction[4] / 2)])
-        if index == 10:
+        if index == 90:
             # 'C:\\Users\\Lewis\\PycharmProjects\\torch_yolov5\\50_feet_imgs\\verifier\\35ft\\out_images\\IMG_9859.JPG'
-            draw_bounding_boxes_on_verifier('50_feet_imgs/candidate/10ft/out_images/IMG_8629.JPG',
+            draw_bounding_boxes_on_verifier('100_feet_imgs/candidate/95ft/out_images/IMG_8939.JPG',
                                             new_prediction[0], new_prediction[1],
                                             (0, 0, 255))
             # draw_bounding_boxes_on_verifier('test\\new_method_45_ft_from_cand.jpg', cand_pred[0], cand_pred[1],
@@ -638,7 +641,7 @@ def shift_by_average(data_dataframe, claimed_distance, average):
     plt.savefig('IoU vs Distance from Cand_Avg Shift_.png')
 
 
-# shift_by_average(df, claimed_distance=50, average=2695)
+shift_by_average(df, claimed_distance=100, average=2035)
 
 def convert_normalized_to_pixels(x, y):
     xp = x * IMAGE_WIDTH
@@ -686,10 +689,10 @@ xp, yp = convert_normalized_to_pixels(0.179688, 0.527282)
 trial_2_inverse_perspective_transformation(xp, yp)
 
 
-# plot_pixel_distance_vs_complementary_points(df['candidate'], df['verifier'], size_bin=50)
+# plot_pixel_distance_vs_complementary_points(df['candidate'], df['verifier'], size_bin=100)
 
 
-# two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=50, translation=False)
+# two_dimensional_bounding_box_trace(df['candidate'], df['verifier'], size_bin=100, translation=False)
 
 # create a 3d plot showing the bounding box trace
 # moreover, x-y plane of the plot is the image, and the axis
